@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>49-Key Realistic Virtual Piano with Expanded Song List</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+.piano-container {
+background: linear-gradient(to bottom, #1a1a1a, #333);
+padding: 20px 10px 0;
+border-radius: 8px;
+box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+overflow-x: auto;
+white-space: nowrap;
+}
+.piano-key {
+display: inline-block;
+vertical-align: top;
+position: relative;
+cursor: pointer;
+transition: all 0.1s ease;
+}
+.white-key {
+width: 40px;
+height: 200px;
+background: linear-gradient(to bottom, #f8f8f8, #fff);
+border: 1px solid #ccc;
+border-radius: 0 0 5px 5px;
+box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+z-index: 1;
+}
+.black-key {
+width: 26px;
+height: 130px;
+background: linear-gradient(to bottom, #333, #000);
+border: 1px solid #000;
+border-radius: 0 0 3px 3px;
+margin-left: -13px;
+margin-right: -13px;
+z-index: 2;
+}
+.key-label {
+position: absolute;
+bottom: 5px;
+left: 50%;
+transform: translateX(-50%);
+font-size: 10px;
+color: #666;
+pointer-events: none;
+}
+.white-key::after,
+.black-key::after {
+content: '';
+position: absolute;
+left: 0;
+right: 0;
+top: 0;
+bottom: 0;
+background: rgba(0, 0, 0, 0.1);
+opacity: 0;
+transition: opacity 0.1s ease;
+}
+.white-key.pressed::after,
+.black-key.pressed::after {
+opacity: 1;
+}
+.white-key.pressed {
+box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) inset;
+}
+.black-key.pressed {
+background: linear-gradient(to bottom, #1a1a1a, #000);
+}
+</style>
+<style>
+body {
+background: linear-gradient(135deg, #1a237e, #4a148c);
+background-attachment: fixed;
+}
+.piano-container {
+background: linear-gradient(to bottom, #2c3e50, #34495e);
+}
+.white-key {
+background: linear-gradient(to bottom, #ecf0f1, #bdc3c7);
+}
+.black-key {
+background: linear-gradient(to bottom, #2c3e50, #2c3e50);
+}
+.piano-key::before {
+content: '';
+position: absolute;
+top: -10%;
+left: -10%;
+right: -10%;
+bottom: -10%;
+background: radial-gradient(circle, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 70%);
+opacity: 0;
+transition: opacity 0.2s;
+pointer-events: none;
+}
+.piano-key.pressed::before {
+opacity: 1;
+animation: shine 0.5s ease-out;
+}
+@keyframes
+
+shine {
+0% {
+opacity: 0;
+transform: scale(0.5);
+}
+50% {
+opacity: 1;
+}
+100% {
+opacity: 0;
+transform: scale(1.2);
+}
+}
+</style>
+</head>
+<body class="bg-gray-100 flex flex-col justify-center items-center min-h-screen p-4">
+<div class="mb-4">
+<select id="song-select" class="p-2 rounded">
+<option value="">Select a song</option>
+<option value="twinkle">Twinkle Twinkle Little Star</option>
+<option value="happy">Happy Birthday</option>
+<option value="jingle">Jingle Bells</option>
+<option value="ode_to_joy">Ode to Joy</option>
+<option value="fur_elise">Für Elise</option>
+<option value="star_wars">Star Wars Theme</option>
+<option value="harry_potter">Harry Potter Theme</option>
+<option value="mario">Super Mario Bros Theme</option>
+<option value="tetris">Tetris Theme</option>
+<option value="let_it_be">Let It Be</option>
+<option value="imagine">Imagine</option>
+<option value="canon">Canon in D</option>
+<option value="greensleeves">Greensleeves</option>
+<option value="amazing_grace">Amazing Grace</option>
+</select>
+<button id="play-button" class="bg-blue-500 text-white p-2 rounded ml-2">Play Song</button>
+</div>
+<div class="piano-container" id="piano"></div>
+
+<script>
+const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const startOctave = 2;
+const endOctave = 5;
+const fullRange = [];
+
+for (let octave = startOctave; octave <= endOctave; octave++) {
+notes.forEach(note => {
+fullRange.push(`${note}${octave}`);
+});
+}
+
+fullRange.length = 49;
+
+let audioContext = null;
+let masterGainNode = null;
+
+function initAudio() {
+try {
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+if (AudioContext) {
+audioContext = new AudioContext();
+masterGainNode = audioContext.createGain();
+masterGainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+masterGainNode.connect(audioContext.destination);
+} else {
+throw new Error("Web Audio API is not supported in this browser.");
+}
+} catch (err) {
+console.error("Failed to initialize audio:", err);
+alert("Failed to initialize audio: " + err.message);
+}
+}
+
+function playNote(freq, duration = 0.5) {
+if (!audioContext) return;
+const now = audioContext.currentTime;
+
+const osc = audioContext.createOscillator();
+osc.type = 'triangle';
+osc.frequency.setValueAtTime(freq, now);
+
+const gainNode = audioContext.createGain();
+gainNode.gain.setValueAtTime(0, now);
+gainNode.gain.linearRampToValueAtTime(0.8, now + 0.01);
+gainNode.gain.exponentialRampToValueAtTime(0.1, now + duration * 0.8);
+gainNode.gain.linearRampToValueAtTime(0, now + duration);
+
+const filter = audioContext.createBiquadFilter();
+filter.type = 'lowpass';
+filter.frequency.setValueAtTime(5000, now);
+filter.Q.setValueAtTime(1, now);
+
+osc.connect(filter);
+filter.connect(gainNode);
+gainNode.connect(masterGainNode);
+
+osc.start(now);
+osc.stop(now + duration);
+
+return { osc, gainNode };
+}
+
+function getFrequency(note) {
+const A4 = 440;
+const A4Index = fullRange.indexOf('A4');
+const halfSteps = fullRange.indexOf(note) - A4Index;
+return A4 * Math.pow(2, halfSteps / 12);
+}
+
+function createPiano() {
+const pianoElement = document.getElementById('piano');
+fullRange.forEach((note, index) => {
+const key = document.createElement('div');
+const isBlackKey = note.includes('#');
+key.className = `piano-key ${isBlackKey ? 'black-key' : 'white-key'}`;
+key.dataset.note = note;
+key.addEventListener('mousedown', () => {
+if (!audioContext) initAudio();
+playNote(getFrequency(note));
+key.classList.add('pressed');
+});
+key.addEventListener('mouseup', () => {
+key.classList.remove('pressed');
+});
+key.addEventListener('mouseleave', () => {
+key.classList.remove('pressed');
+});
+
+const label = document.createElement('span');
+label.className = 'key-label';
+label.textContent = note;
+key.appendChild(label);
+
+pianoElement.appendChild(key);
+});
+}
+
+const songs = {
+twinkle: [
+{ note: 'C4', duration: 0.5 }, { note: 'C4', duration: 0.5 }, { note: 'G4', duration: 0.5 }, { note: 'G4', duration: 0.5 },
+{ note: 'A4', duration: 0.5 }, { note: 'A4', duration: 0.5 }, { note: 'G4', duration: 1 },
+{ note: 'F4', duration: 0.5 }, { note: 'F4', duration: 0.5 }, { note: 'E4', duration: 0.5 }, { note: 'E4', duration: 0.5 },
+{ note: 'D4', duration: 0.5 }, { note: 'D4', duration: 0.5 }, { note: 'C4', duration: 1 }
+],
+happy: [
+{ note: 'C4', duration: 0.25 }, { note: 'C4', duration: 0.25 }, { note: 'D4', duration: 0.5 }, { note: 'C4', duration: 0.5 },
+{ note: 'F4', duration: 0.5 }, { note: 'E4', duration: 1 },
+{ note: 'C4', duration: 0.25 }, { note: 'C4', duration: 0.25 }, { note: 'D4', duration: 0.5 }, { note: 'C4', duration: 0.5 },
+{ note: 'G4', duration: 0.5 }, { note: 'F4', duration: 1 }
+],
+jingle: [
+{ note: 'E4', duration: 0.5 }, { note: 'E4', duration: 0.5 }, { note: 'E4', duration: 1 },
+{ note: 'E4', duration: 0.5 }, { note: 'E4', duration: 0.5 }, { note: 'E4', duration: 1 },
+{ note: 'E4', duration: 0.5 }, { note: 'G4', duration: 0.5 }, { note: 'C4', duration: 0.75 }, { note: 'D4', duration: 0.25 },
+{ note: 'E4', duration: 2 }
+],
+ode_to_joy: [
+{ note: 'E4', duration: 0.5 }, { note: 'E4', duration: 0.5 }, { note: 'F4', duration: 0.5 }, { note: 'G4', duration: 0.5 },
+{ note: 'G4', duration: 0.5 }, { note: 'F4', duration: 0.5 }, { note: 'E4', duration: 0.5 }, { note: 'D4', duration: 0.5 },
+{ note: 'C4', duration: 0.5 }, { note: 'C4', duration: 0.5 }, { note: 'D4', duration: 0.5 }, { note: 'E4', duration: 0.5 },
+{ note: 'E4', duration: 0.75 }, { note: 'D4', duration: 0.25 }, { note: 'D4', duration: 1 }
+],
+fur_elise: [
+{ note: 'E5', duration: 0.25 }, { note: 'D#5', duration: 0.25 },
+{ note: 'E5', duration: 0.25 }, { note: 'D#5', duration: 0.25 }, { note: 'E5', duration: 0.25 }, { note: 'B4', duration: 0.25 }, { note: 'D5', duration: 0.25 }, { note: 'C5', duration: 0.25 },
+{ note: 'A4', duration: 0.5 }, { note: 'C4', duration: 0.25 }, { note: 'E4', duration: 0.25 }, { note: 'A4', duration: 0.25 },
+{ note: 'B4', duration: 0.5 }, { note: 'E4', duration: 0.25 }, { note: 'G#4', duration: 0.25 }, { note: 'B4', duration: 0.25 }
+],
+star_wars: [
+{ note: 'C4', duration: 0.5 }, { note: 'G4', duration: 0.5 }, { note: 'F4', duration: 0.125 }, { note: 'E4', duration: 0.125 }, { note: 'D4', duration: 0.125 },
+{ note: 'C5', duration: 0.5 }, { note: 'G4', duration: 0.25 }, { note: 'F4', duration: 0.125 }, { note: 'E4', duration: 0.125 }, { note: 'D4', duration: 0.125 },
+{ note: 'C5', duration: 0.5 }, { note: 'G4', duration: 0.25 }, { note: 'F4', duration: 0.125 }, { note: 'E4', duration: 0.125 }, { note: 'F4', duration: 0.125 },
+{ note: 'D4', duration: 0.5 }
+],
+harry_potter: [
+{ note: 'B4', duration: 0.5 }, { note: 'E5', duration: 1 }, { note: 'G5', duration: 0.25 }, { note: 'F#5', duration: 0.25 },
+{ note: 'E5', duration: 0.5 }, { note: 'B5', duration: 1 }, { note: 'A5', duration: 1.5 },
+{ note: 'F#5', duration: 0.5 }, { note: 'E5', duration: 1 }, { note: 'G5', duration: 0.25 }, { note: 'F#5', duration: 0.25 },
+{ note: 'D5', duration: 0.5 }, { note: 'F5', duration: 1 }, { note: 'B4', duration: 1.5 }
+],
+mario: [
+{ note: 'E5', duration: 0.25 }, { note: 'E5', duration: 0.25 }, { note: 'E5', duration: 0.25 }, { note: 'C5', duration: 0.25 }, { note: 'E5', duration: 0.5 },
+{ note: 'G5', duration: 0.5 }, { note: 'G4', duration: 0.5 },
+{ note: 'C5', duration: 0.5 }, { note: 'G4', duration: 0.25 }, { note: 'E4', duration: 0.5 },
+{ note: 'A4', duration: 0.5 }, { note: 'B4', duration: 0.5 }, { note: 'A#4', duration: 0.25 }, { note: 'A4', duration: 0.5 },
+{ note: 'G4', duration: 0.33 }, { note: 'E5', duration: 0.33 }, { note: 'G5', duration: 0.33 },
+{ note: 'A5', duration: 0.5 }, { note: 'F5', duration: 0.25 }, { note: 'G5', duration: 0.25 },
+{ note: 'E5', duration: 0.5 }, { note: 'C5', duration: 0.25 }, { note: 'D5', duration: 0.25 }, { note: 'B4', duration: 0.5 }
+],
+tetris: [
+{ note: 'E5', duration: 0.5 }, { note: 'B4', duration: 0.25 }, { note: 'C5', duration: 0.25 },
+{ note: 'D5', duration: 0.5 }, { note: 'C5', duration: 0.25 }, { note: 'B4', duration: 0.25 },
+{ note: 'A4', duration: 0.5 }, { note: 'A4', duration: 0.25 }, { note: 'C5', duration: 0.25 },
+{ note: 'E5', duration: 0.5 }, { note: 'D5', duration: 0.25 }, { note: 'C5', duration: 0.25 },
+{ note: 'B4', duration: 0.75 }, { note: 'C5', duration: 0.25 }, { note: 'D5', duration: 0.5 },
+{ note: 'E5', duration: 0.5 }, { note: 'C5', duration: 0.5 }, { note: 'A4', duration: 0.5 },
+{ note: 'A4', duration: 0.75 }, { note: 'D5', duration: 0.75 }, { note: 'F5', duration: 0.75 },
+{ note: 'A5', duration: 0.5 }, { note: 'G5', duration: 0.25 }, { note: 'F5', duration: 0.25 }
+],
+let_it_be: [
+{ note: 'C4', duration: 0.5 }, { note: 'G4', duration: 0.5 }, { note: 'A4', duration: 0.5 },
+{ note: 'C5', duration: 1 }, { note: 'C5', duration: 0.5 },
+{ note: 'D5', duration: 0.25 }, { note: 'C5', duration: 0.25 }, { note: 'A4', duration: 0.5 }, { note: 'G4', duration: 0.5 },
+{ note: 'G4', duration: 1 }, { note: 'G4', duration: 0.5 },
+{ note: 'F4', duration: 0.5 }, { note: 'E4', duration: 0.5 }, { note: 'C4', duration: 0.5 },
+{ note: 'D4', duration: 0.5 }, { note: 'C4', duration: 1 }
+],
+imagine: [
+{ note: 'C5', duration: 0.5 }, { note: 'F4', duration: 0.5 }, { note: 'C5', duration: 0.5 },
+{ note: 'E5', duration: 1 }, { note: 'E5', duration: 0.5 },
+{ note: 'E5', duration: 0.5 }, { note: 'D5', duration: 0.5 }, { note: 'C5', duration: 0.5 },
+{ note: 'C5', duration: 1 }, { note: 'B4', duration: 0.5 },
+{ note: 'B4', duration: 0.5 }, { note: 'A4', duration: 0.5 }, { note: 'G4', duration: 0.5 },
+{ note: 'F4', duration: 1 }, { note: 'F4', duration: 0.5 }
+],
+canon: [
+{ note: 'D4', duration: 0.5 }, { note: 'F#4', duration: 0.5 }, { note: 'A4', duration: 0.5 },
+{ note: 'D5', duration: 0.5 }, { note: 'A4', duration: 0.5 }, { note: 'F#4', duration: 0.5 },
+{ note: 'D4', duration: 0.5 }, { note: 'C#4', duration: 0.5 }, { note: 'E4', duration: 0.5 },
+{ note: 'A4', duration: 0.5 }, { note: 'C#5', duration: 0.5 }, { note: 'E5', duration: 0.5 },
+{ note: 'A5', duration: 0.5 }, { note: 'G5', duration: 0.5 }, { note: 'F#5', duration: 0.5 },
+{ note: 'E5', duration: 0.5 }, { note: 'D5', duration: 0.5 }, { note: 'C#5', duration: 0.5 }
+],
+greensleeves: [
+{ note: 'G4', duration: 0.75 }, { note: 'A#4', duration: 0.25 }, { note: 'C5', duration: 0.5 },
+{ note: 'D5', duration: 0.75 }, { note: 'D#5', duration: 0.25 }, { note: 'D5', duration: 0.5 },
+{ note: 'C5', duration: 1 }, { note: 'A4', duration: 0.75 }, { note: 'F4', duration: 0.25 },
+{ note: 'G4', duration: 0.5 }, { note: 'A4', duration: 1 }, { note: 'G4', duration: 0.75 },
+{ note: 'F4', duration: 0.25 }, { note: 'E4', duration: 0.5 }, { note: 'F4', duration: 1 }
+],
+amazing_grace: [
+{ note: 'G4', duration: 0.75 }, { note: 'C5', duration: 0.25 },
+{ note: 'E5', duration: 1 }, { note: 'C5', duration: 0.75 }, { note: 'E5', duration: 0.25 },
+{ note: 'G5', duration: 1.5 }, { note: 'G5', duration: 0.5 },
+{ note: 'G5', duration: 0.75 }, { note: 'E5', duration: 0.25 }, { note: 'C5', duration: 1 },
+{ note: 'E5', duration: 0.75 }, { note: 'D5', duration: 0.25 }, { note: 'C5', duration: 2 }
+]
+};
+
+async function playSong(songName) {
+if (!audioContext) initAudio();
+const song = songs[songName];
+for (const { note, duration } of song) {
+const key = document.querySelector(`.piano-key[data-note="${note}"]`);
+key.classList.add('pressed');
+playNote(getFrequency(note), duration);
+await new Promise(resolve => setTimeout(resolve, duration * 1000));
+key.classList.remove('pressed');
+}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+createPiano();
+const playButton = document.getElementById('play-button');
+const songSelect = document.getElementById('song-select');
+
+playButton.addEventListener('click', () => {
+const selectedSong = songSelect.value;
+if (selectedSong) {
+playSong(selectedSong);
+} else {
+alert('Please select a song first.');
+}
+});
+});
+
+</script>
+
+</body>
+</html>
